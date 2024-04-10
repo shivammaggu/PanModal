@@ -27,6 +27,7 @@ public extension PanModalPresentable where Self: UIViewController {
      function in the PanModalPresentationController.
      */
     func panModalTransition(to state: PanModalPresentationController.PresentationState) {
+        guard presentedVC?.containerView != nil else {return}
         presentedVC?.transition(to: state)
     }
 
