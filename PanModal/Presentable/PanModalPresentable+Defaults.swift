@@ -14,7 +14,14 @@ import UIKit
 public extension PanModalPresentable where Self: UIViewController {
 
     var topOffset: CGFloat {
-        return topLayoutOffset + 21.0
+        var offset = topLayoutOffset + 21.0
+        
+        // Add space for close button if enabled
+        if closeButtonConfig.isEnabled {
+            offset += closeButtonConfig.size.height + closeButtonConfig.distanceFromPresentedView
+        }
+        
+        return offset
     }
 
     var shortFormHeight: PanModalHeight {
@@ -95,6 +102,10 @@ public extension PanModalPresentable where Self: UIViewController {
 
     var showDragIndicator: Bool {
         return shouldRoundTopCorners
+    }
+
+    var closeButtonConfig: CloseButtonConfig {
+        return .default
     }
 
     func shouldRespond(to panModalGestureRecognizer: UIPanGestureRecognizer) -> Bool {
