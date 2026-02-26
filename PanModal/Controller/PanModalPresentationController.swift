@@ -140,6 +140,30 @@ open class PanModalPresentationController: UIPresentationController {
     }()
 
     /**
+     Close Button View
+     */
+    private lazy var closeButton: UIButton = {
+        let button = UIButton(type: .custom)
+        let config = presentable?.closeButtonConfig ?? .default
+        
+        // Set the image
+        if let customImage = config.image {
+            button.setImage(customImage, for: .normal)
+        }
+        // Style the button
+        button.backgroundColor = .clear
+        // Add action
+        button.addTarget(self, action: #selector(closeButtonTapped), for: .touchUpInside)
+        
+        return button
+    }()
+
+    /**
+     Close button constraints for dynamic updates
+     */
+    private var closeButtonConstraints: [NSLayoutConstraint] = []
+
+    /**
      Override presented view to return the pan container wrapper
      */
     public override var presentedView: UIView {
@@ -163,6 +187,19 @@ open class PanModalPresentationController: UIPresentationController {
 
     deinit {
         scrollObserver?.invalidate()
+    }
+
+    // MARK: - Actions
+
+    /**
+     Handle close button tap
+     */
+    @objc private func closeButtonTapped() {
+        if let action = presentable?.closeButtonConfig.action {
+            action()
+        } else {
+            presentedViewController.dismiss(animated: true)
+        }
     }
 
     // MARK: - Lifecycle
@@ -216,6 +253,7 @@ open class PanModalPresentationController: UIPresentationController {
          */
         coordinator.animate(alongsideTransition: { [weak self] _ in
             self?.dragIndicatorView.alpha = 0.0
+            self?.closeButton.alpha = 0.0
             self?.backgroundView.dimState = .off
             self?.presentingViewController.setNeedsStatusBarAppearanceUpdate()
         })
@@ -308,6 +346,7 @@ public extension PanModalPresentationController {
         adjustPresentedViewFrame()
         observe(scrollView: presentable?.panScrollable)
         configureScrollViewInsets()
+        updateCloseButton()
     }
 
 }
@@ -357,6 +396,10 @@ private extension PanModalPresentationController {
 
         if presentable.shouldRoundTopCorners {
             addRoundedCorners(to: presentedView)
+        }
+
+        if presentable.closeButtonConfig.isEnabled {
+            addCloseButton(to: containerView, presentedView: presentedView)
         }
 
         setNeedsLayoutUpdate()
@@ -419,6 +462,77 @@ private extension PanModalPresentationController {
         dragIndicatorView.centerXAnchor.constraint(equalTo: view.centerXAnchor).isActive = true
         dragIndicatorView.widthAnchor.constraint(equalToConstant: Constants.dragIndicatorSize.width).isActive = true
         dragIndicatorView.heightAnchor.constraint(equalToConstant: Constants.dragIndicatorSize.height).isActive = true
+    }
+
+    /**
+     Adds the close button to the view hierarchy
+     & configures its layout constraints.
+     */
+    func addCloseButton(to containerView: UIView, presentedView: UIView) {
+        guard let presentable = presentable, presentable.closeButtonConfig.isEnabled else { return }
+        
+        containerView.addSubview(closeButton)
+        closeButton.translatesAutoresizingMaskIntoConstraints = false
+        
+        configureCloseButton()
+        updateCloseButtonConstraints(presentedView: presentedView)
+    }
+
+    /**
+     Configures the close button appearance based on current config
+     */
+    func configureCloseButton() {
+        guard let config = presentable?.closeButtonConfig else { return }
+        
+        // Update image
+        if let customImage = config.image {
+            closeButton.setImage(customImage, for: .normal)
+        }
+        
+        // Update styling
+        closeButton.backgroundColor = .clear
+    }
+
+    /**
+     Updates close button constraints based on current config
+     */
+    func updateCloseButtonConstraints(presentedView: UIView) {
+        guard let config = presentable?.closeButtonConfig else { return }
+        
+        // Remove old constraints
+        NSLayoutConstraint.deactivate(closeButtonConstraints)
+        closeButtonConstraints.removeAll()
+        
+        // Create new constraints
+        let bottomConstraint = closeButton.bottomAnchor.constraint(equalTo: presentedView.topAnchor, constant: -config.distanceFromPresentedView)
+        let centerXConstraint = closeButton.centerXAnchor.constraint(equalTo: presentedView.centerXAnchor)
+        let widthConstraint = closeButton.widthAnchor.constraint(equalToConstant: config.size.width)
+        let heightConstraint = closeButton.heightAnchor.constraint(equalToConstant: config.size.height)
+        
+        closeButtonConstraints = [bottomConstraint, centerXConstraint, widthConstraint, heightConstraint]
+        NSLayoutConstraint.activate(closeButtonConstraints)
+    }
+
+    /**
+     Updates the close button visibility and configuration
+     */
+    func updateCloseButton() {
+        guard let presentable = presentable else { return }
+        
+        if presentable.closeButtonConfig.isEnabled {
+            if closeButton.superview == nil, let containerView = containerView {
+                // Add button if not already added
+                containerView.addSubview(closeButton)
+                closeButton.translatesAutoresizingMaskIntoConstraints = false
+            }
+            // Update configuration and constraints
+            configureCloseButton()
+            updateCloseButtonConstraints(presentedView: presentedView)
+            closeButton.isHidden = false
+        } else {
+            // Hide button if disabled
+            closeButton.isHidden = true
+        }
     }
 
     /**
